@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elektromanyetik Alanlarda Parçacık Hareketi (Horizontal Layout)</title>
+    <!-- MathJax Configuration -->
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <!-- Load MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
+    <style>
+        :root {
+            --main-bg-color: #f4f7f9;
+            --node-bg-color: #ffffff;
+            --node-border-color: #e1e4e8;
+            --connector-color: #aab1bb;
+            --shadow-color: rgba(0, 0, 0, 0.08);
+            --text-color: #24292e;
+            --text-secondary-color: #586069;
+            --highlight-color: #0366d6;
+
+            --node-padding: 14px 20px;
+            --node-radius: 6px;
+            --connector-width: 2px;
+            --arrow-size: 6px;
+
+            /* Level Colors */
+            --level-0-color: #0366d6;
+            --level-1-color: #d73a49;
+            --level-1-1-color: #6f42c1;
+            --level-1-2-color: #28a745;
+            --level-1-2-1-color: #e36209;
+            --level-1-2-2-border: #f9a825; /* Note: Used as border-color in JS, legend shows background */
+            --level-1-2-3-color: #17a2b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        }
+
+        /* Body and Container Setup */
+        body {
+            background-color: var(--main-bg-color);
+            padding: 0;
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow: hidden; /* Prevent body scroll */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header-container {
+             padding: 1.5rem 2rem;
+             background-color: #fff;
+             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+             z-index: 20;
+             flex-shrink: 0;
+        }
+
+        .header { text-align: center; margin-bottom: 1.5rem; }
+        .header h1 { font-size: 2.0rem; color: var(--text-color); margin-bottom: 0.4rem; font-weight: 600; }
+        .header p { font-size: 1.0rem; color: var(--text-secondary-color); max-width: 700px; margin: 0 auto; }
+        .controls { display: flex; justify-content: center; margin-bottom: 1rem; gap: 0.8rem; flex-wrap: wrap; }
+        .btn { padding: 8px 16px; background-color: var(--highlight-color); color: white; border: none; border-radius: var(--node-radius); cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease; font-size: 0.85rem; font-weight: 500; }
+        .btn:hover { background-color: #005cc5; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+
+        /* Viewport for panning and zooming */
+        .mind-map-container {
+            flex-grow: 1;
+            width: 100%;
+            position: relative;
+            overflow: hidden; /* Crucial: hides parts of the map outside */
+            cursor: grab;
+            background-color: var(--main-bg-color);
+        }
+         .mind-map-container.dragging-map { cursor: grabbing; }
+         .mind-map-container.dragging-node { cursor: grabbing; } /* Cursor for node drag */
+
+        /* Mind Map Canvas - This element will be transformed (pan/zoom) */
+        #mind-map {
+            position: relative; /* Changed from absolute to allow transform-origin */
+            width: fit-content; /* Allow map to grow based on content */
+            height: fit-content;
+            transform-origin: top left; /* Set origin for scaling */
+            padding: 100px; /* Generous padding around map elements */
+            pointer-events: none; /* Allow clicks/drags to pass through to container for panning */
+        }
+        #mind-map > * {
+            pointer-events: auto; /* Re-enable pointer events for children (nodes, legend) */
+        }
+
+        /* Node Styling */
+        .node {
+            position: absolute; /* Nodes positioned relative to #mind-map */
+            background-color: var(--node-bg-color);
+            border-radius: var(--node-radius);
+            padding: var(--node-padding);
+            box-shadow: 0 3px 6px var(--shadow-color);
+            border: 1px solid var(--node-border-color);
+            min-width: 180px;
+            max-width: 320px;
+            cursor: grab; /* Default cursor for node is grab */
+            transition: box-shadow 0.3s ease, transform 0.3s ease, opacity 0.4s ease, left 0.1s linear, top 0.1s linear; /* Faster pos transition for drag */
+            border-left: 4px solid; /* Color indicator */
+            z-index: 10;
+            opacity: 1;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .node.dragging {
+             cursor: grabbing !important; /* Override cursor while dragging node */
+             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* Enhance shadow */
+             z-index: 11; /* Bring dragged node above others */
+             transition: box-shadow 0.3s ease, transform 0.3s ease, opacity 0.4s ease; /* Remove pos transition during drag */
+        }
+
+        /* Prevent grab cursor on interactive elements within node */
+        .node .toggle-btn, .node .info-icon, .node a, .node button {
+            cursor: pointer;
+        }
+
+        .node.hidden { opacity: 0; pointer-events: none; z-index: 1; transform: scale(0.9); } /* Added scale for visual effect */
+        .node:hover:not(.hidden):not(.dragging) {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px) scale(1.01); /* Slight lift on hover */
+        }
+
+        /* Level specific border colors */
+        .node.level-0 { border-left-color: var(--level-0-color); }
+        .node.level-1 { border-left-color: var(--level-1-color); }
+        .node.level-1-1 { border-left-color: var(--level-1-1-color); }
+        .node.level-1-2 { border-left-color: var(--level-1-2-color); }
+        .node.level-1-2-1 { border-left-color: var(--level-1-2-1-color); }
+        .node.level-1-2-2 { border-left-color: var(--level-1-2-2-border); }
+        .node.level-1-2-3 { border-left-color: var(--level-1-2-3-color); }
+
+        .node-title { font-weight: 600; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between; font-size: 1rem; }
+        .node-content { font-size: 0.9rem; color: var(--text-secondary-color); }
+        .node-content p { margin-bottom: 0.3rem; }
+        .node-content strong { color: var(--text-color); font-weight: 600; }
+        .node-content .equation { font-style: normal; color: var(--highlight-color); display: inline-block; margin: 0 2px; }
+        .node-content .info { font-weight: 600; color: var(--text-color); }
+        .node-title .icon { margin-right: 8px; font-size: 1.1em; } /* Style for icons in title */
+
+        .toggle-btn { cursor: pointer; color: var(--text-secondary-color); font-size: 1.3rem; margin-left: 10px; transition: transform 0.3s ease; padding: 2px; line-height: 1; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
+        .toggle-btn:hover { background-color: rgba(0,0,0,0.05); }
+        .toggle-btn.closed::before { content: '+'; transform: rotate(0deg); } /* Explicitly use + */
+        .toggle-btn::before { content: '−'; display: inline-block; transition: transform 0.3s ease; transform: rotate(0deg); } /* Use - for open */
+
+        /* Connector Styling */
+        .connector {
+            position: absolute; /* Positioned relative to #mind-map */
+            height: var(--connector-width);
+            background-color: var(--connector-color);
+            z-index: 5;
+            transform-origin: 0 50%; /* Rotate around the starting point */
+            opacity: 1;
+            transition: opacity 0.4s ease, background-color 0.3s ease, width 0.1s linear, left 0.1s linear, top 0.1s linear, transform 0.1s linear; /* Faster transition during drag */
+            pointer-events: none;
+        }
+        .connector.hidden { opacity: 0; }
+        .connector::after {
+            content: "";
+            position: absolute;
+            right: 0; /* Arrow tip at the end */
+            top: 50%;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: var(--arrow-size) 0 var(--arrow-size) calc(var(--arrow-size) * 1.5); /* Triangle shape */
+            border-color: transparent transparent transparent var(--connector-color); /* Arrow points left relative to connector */
+            transform: translateY(-50%);
+            transition: border-color 0.3s ease;
+        }
+
+         /* Highlighting */
+         .node.highlight { border-color: var(--highlight-color) !important; /* Highlight the main border */ box-shadow: 0 0 0 2px var(--highlight-color), 0 6px 12px rgba(0, 0, 0, 0.15); }
+         .connector.highlight { background-color: var(--highlight-color); z-index: 6; }
+         .connector.highlight::after { border-color: transparent transparent transparent var(--highlight-color); }
+
+        /* Tooltip */
+        .tooltip { position: fixed; background-color: rgba(0, 0, 0, 0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 0.85rem; max-width: 280px; z-index: 1000; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 0.2s ease; pointer-events: none; white-space: normal; }
+        .info-icon { cursor: help; color: var(--highlight-color); margin-left: 8px; font-size: 0.85rem; font-weight: bold; border: 1px solid var(--highlight-color); border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+
+        /* Legend */
+        .legend-container {
+            position: absolute; /* Positioned relative to #mind-map */
+            bottom: 20px;
+            left: 20px;
+            z-index: 15;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: var(--node-radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            max-width: calc(100% - 40px); /* Limit width within its container */
+            border: 1px solid var(--node-border-color);
+        }
+        .legend { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.8rem 1.2rem; font-size: 0.85rem; }
+        .legend-item { display: flex; align-items: center; }
+        .legend-color { width: 15px; height: 15px; margin-right: 6px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+
+        /* MathJax inline display */
+        mjx-container { display: inline !important; margin: 0 1px !important; }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+             .header-container { padding: 1rem; }
+            .header h1 { font-size: 1.6rem; }
+            .header p { font-size: 0.9rem; }
+            .node { min-width: 160px; max-width: 290px; padding: 10px 15px; }
+            .controls { gap: 0.5rem; margin-bottom: 0.5rem; }
+            .btn { padding: 7px 14px; font-size: 0.8rem; }
+             /* Adjust legend positioning slightly if needed for scaled view */
+             .legend-container { bottom: 10px; left: 10px; padding: 0.8rem; max-width: calc(100% - 20px); }
+             .legend { gap: 0.5rem 1rem; font-size: 0.8rem; }
+             #mind-map { padding: 60px; } /* Less padding on smaller screens */
+        }
+         @media (max-width: 480px) {
+             .header h1 { font-size: 1.4rem; }
+             .node { max-width: 85%; } /* Allow nodes to take more width */
+             #mind-map { padding: 40px 20px; }
+         }
+
+    </style>
+</head>
+<body>
+    <div class="header-container">
+         <div class="header">
+             <h1>Elektromanyetik Alanlarda Parçacık Hareketi</h1>
+             <p>Yüklü ve yüksüz parçacıkların düzgün E ve B alanlarındaki hareketinin incelenmesi.</p>
+         </div>
+         <div class="controls">
+             <button class="btn" id="expand-all">Tümünü Genişlet</button>
+             <button class="btn" id="collapse-all">Tümünü Daralt</button>
+             <button class="btn" id="reset-view">Görünümü Sıfırla</button>
+             <button class="btn" id="recalculate-layout">Düzeni Yeniden Hesapla</button>
+         </div>
+    </div>
+
+    <div class="mind-map-container" id="mind-map-viewport">
+        <!-- The #mind-map element will be panned and zoomed -->
+        <div id="mind-map">
+            <!-- Nodes and Legend will be appended here by JS -->
+        </div>
+        <div class="tooltip" id="tooltip"></div>
+    </div>
+
+    <script>
+        // Mind map data
+        const mindMapData = {
+             id: "root",
+             title: "Parçacıkların E ve B Alanlarındaki Hareketi",
+             level: "level-0",
+             children: [
+                 {
+                     id: "particle-type",
+                     title: "Parçacık Türü",
+                     level: "level-1",
+                     children: [
+                         {
+                             id: "neutral-particles",
+                             title: "Yüksüz Parçacıklar (Nötr)",
+                             level: "level-1-1",
+                             children: [
+                                 { id: "neutral-in-e", title: "E Alanında Hareket", content: "<p>Elektriksel kuvvet etki etmez. <span class='info'>Kuvvet:</span> \\( F_E = 0 \\). Parçacık başlangıç durumu (durgun veya sabit hızlı) devam eder.</p>", icon: "→", tooltip: "Elektrik alan sadece yüklü parçacıklara kuvvet uygular." },
+                                 { id: "neutral-in-b", title: "B Alanında Hareket", content: "<p>Manyetik kuvvet etki etmez. <span class='info'>Kuvvet:</span> \\( F_B = 0 \\). Parçacık başlangıç durumu (durgun veya sabit hızlı) devam eder.</p>", icon: "→", tooltip: "Manyetik alan sadece hareketli yüklü parçacıklara kuvvet uygular." }
+                             ]
+                         },
+                         {
+                             id: "charged-particles",
+                             title: "Yüklü Parçacıklar (q ≠ 0)",
+                             level: "level-1-2",
+                             children: [
+                                 {
+                                     id: "only-e-field",
+                                     title: "Sadece Elektrik Alan (E)",
+                                     level: "level-1-2-1",
+                                     content: "<p>Kuvvet alandan bağımsız, sadece yüke ve alan şiddetine bağlıdır: <span class='equation'>\\( \\vec{F}_E = q \\vec{E} \\)</span>. Bu kuvvet iş yapar ve parçacığın kinetik enerjisini değiştirir.</p>",
+                                     icon: "⚡",
+                                     children: [
+                                         { id: "e-field-v0", title: "Başlangıç Hızı Sıfır (v=0)", content: "<p><span class='info'>Kuvvet:</span> \\( \\vec{F}_E = q \\vec{E} \\) sabit. <span class='info'>Hareket:</span> Sabit ivmeli doğrusal. q>0 ise E yönünde, q<0 ise E'ye zıt yönde hızlanır.</p>", tooltip: "Yerçekimi alanındaki serbest düşme gibi." },
+                                         { id: "e-field-v-parallel", title: "Hız Alana Paralel (v || E)", content: "<p><span class='info'>Kuvvet:</span> \\( \\vec{F}_E = q \\vec{E} \\) sabit. <span class='info'>Hareket:</span> Doğrusal. Yönüne göre hızlanır (qE ve v aynı yönlü) veya yavaşlar (qE ve v zıt yönlü).</p>", tooltip: "Hız vektörü ile kuvvet aynı doğrultuda." },
+                                         { id: "e-field-v-perp", title: "Hız Alana Dik (v ⊥ E)", content: "<p><span class='info'>Kuvvet:</span> \\( \\vec{F}_E = q \\vec{E} \\) (hız yönüne dik). <span class='info'>Hareket:</span> Parabolik. Hızın ilk yönündeki bileşeni sabit kalırken, alan yönünde sabit ivmeli hareket eder.</p>", icon: "↗", tooltip: "Yatay atış veya eğik atış hareketine benzer." }
+                                     ]
+                                 },
+                                 {
+                                     id: "only-b-field",
+                                     title: "Sadece Manyetik Alan (B)",
+                                     level: "level-1-2-2",
+                                     content: "<p>Manyetik Kuvvet (Lorentz Kuvveti'nin manyetik kısmı): <span class='equation'>\\( \\vec{F}_B = q (\\vec{v} \\times \\vec{B}) \\)</span>. Kuvvet her zaman hıza (\\(\\vec{v}\\)) ve alana (\\(\\vec{B}\\)) diktir. <span class='info'>İş yapmaz</span>, kinetik enerjiyi değiştirmez, sadece yönü değiştirir.</p>",
+                                     icon: "🧲",
+                                     children: [
+                                         { id: "b-field-v0", title: "Başlangıç Hızı Sıfır (v=0)", content: "<p><span class='info'>Kuvvet:</span> \\( \\vec{F}_B = q (0 \\times \\vec{B}) = 0 \\). <span class='info'>Hareket:</span> Parçacık durgun kalır.</p>", icon: "⏹", tooltip: "Manyetik kuvvetin oluşması için parçacığın hareketli olması gerekir." },
+                                         { id: "b-field-v-parallel", title: "Hız Alana Paralel (v || B)", content: "<p>\\( \\vec{v} \\) ve \\( \\vec{B} \\) arasındaki açı \\( \\theta = 0° \\) veya \\( 180° \\). <span class='info'>Kuvvet:</span> \\( F_B = |q|vB \\sin(0^{\\circ}) = 0 \\). <span class='info'>Hareket:</span> Sabit hızla doğrusal hareketine devam eder.</p>", icon: "→", tooltip: "Hız ve alan paralelse vektörel çarpım sıfırdır." },
+                                         { id: "b-field-v-perp", title: "Hız Alana Dik (v ⊥ B)", content: "<p>\\( \\theta = 90° \\). <span class='info'>Kuvvet:</span> Sabit büyüklükte \\( F_B = |q|vB \\), \\( \\vec{v} \\)'ye daima dik. <span class='info'>Hareket:</span> Düzgün dairesel. Yörünge yarıçapı: <span class='equation'>\\( r = \\frac{mv}{|q|B} \\)</span>.</p>", icon: "⭕", tooltip: "Manyetik kuvvet merkezcil kuvvet görevi görür." },
+                                         { id: "b-field-v-angled", title: "Hız Alana Açılı (0 < θ < 180)", content: "<p>Hızın \\( \\vec{B} \\)'ye paralel bileşeni (\\(v_\\parallel\\)) sabit kalır, dik bileşeni (\\(v_\\perp\\)) dairesel harekete neden olur. <span class='info'>Hareket:</span> Helisel (spiral). Vida adımı (pitch): \\( p = v_\\parallel T = v_\\parallel \\frac{2\\pi m}{|q|B} \\).</p>", icon: "↻", tooltip: "Doğrusal ve dairesel hareketin birleşimi." }
+                                     ]
+                                 },
+                                 {
+                                     id: "combined-fields",
+                                     title: "Birleşik Alanlar (E ve B)",
+                                     level: "level-1-2-3",
+                                     content: "<p>Parçacığa etkiyen toplam kuvvet Lorentz Kuvvetidir: <span class='equation'>\\( \\vec{F} = \\vec{F}_E + \\vec{F}_B = q\\vec{E} + q(\\vec{v} \\times \\vec{B}) \\)</span>. Hareket genellikle karmaşıktır.</p>",
+                                     icon: "⚛️",
+                                     children: [
+                                         { id: "combined-parallel", title: "Paralel Alanlar (E || B)", content: "<p>Eğer \\( \\vec{v} \\) alanlara dikse, \\( \\vec{F}_E \\) doğrusal ivmelenme, \\( \\vec{F}_B \\) dairesel hareket (veya helisel eğer \\(v\\) tam dik değilse) sağlar. Sonuç genellikle hızlanan helisel bir yörüngedir.</p>", icon: "🌀", tooltip: "Elektrik alan hızlandırırken manyetik alan yörüngeyi büker." },
+                                         { id: "combined-perp-velocity-selector", title: "Dik Alanlar (E ⊥ B) - Hız Seçici", content: "<p>Eğer \\( \\vec{v} \\) hem \\( \\vec{E} \\)'ye hem \\( \\vec{B} \\)'ye dikse, \\( \\vec{F}_E \\) ve \\( \\vec{F}_B \\) zıt yönlü olabilir. Eğer \\( |\\vec{F}_E| = |\\vec{F}_B| \\) ise (yani \\( qE = qvB \\)), net kuvvet sıfır olur. <span class='info'>Koşul:</span> \\( v = E/B \\). Bu hızdaki parçacıklar sapmadan geçer.</p>", icon: "⚖️", tooltip: "Belirli bir hıza sahip parçacıkları seçmek için kullanılır." },
+                                         { id: "combined-perp-v0", title: "Dik Alanlar (E ⊥ B), Başlangıç Hızı Sıfır (v=0)", content: "<p>Başlangıçta sadece \\( \\vec{F}_E \\) etkir, parçacık \\( \\vec{E} \\) yönünde hızlanır. Hız kazandıkça \\( \\vec{F}_B \\) de etki etmeye başlar (\\( \\vec{v} \\)'ye ve \\( \\vec{B} \\)'ye dik). Sonuç: Sikloid veya trokoid benzeri bir yörünge.</p>", icon: "↝", tooltip: "Örnek: Manyetronlardaki elektron hareketi." }
+                                     ]
+                                 }
+                             ]
+                         }
+                     ]
+                 }
+             ]
+        };
+
+        // DOM elements
+        const mindMapViewport = document.getElementById('mind-map-viewport');
+        const mindMapElement = document.getElementById('mind-map');
+        const tooltipElement = document.getElementById('tooltip');
+        const expandAllBtn = document.getElementById('expand-all');
+        const collapseAllBtn = document.getElementById('collapse-all');
+        const resetViewBtn = document.getElementById('reset-view');
+        const recalculateLayoutBtn = document.getElementById('recalculate-layout');
+
+        // Layout settings
+        const layoutSettings = {
+            rootX: 50,
+            rootY: 300,
+            hLevelGap: 180,
+            vNodePadding: 10,
+        };
+
+        // State variables
+        const nodes = {};
+        let connectors = [];
+        let isMapDragging = false, startMapDragX = 0, startMapDragY = 0;
+        let currentTranslateX = 0, currentTranslateY = 0;
+        let currentScale = 1; // <-- Added for zoom
+        const minScale = 0.2, maxScale = 2.5, zoomFactor = 1.1; // <-- Zoom limits and factor
+        let isNodeDragging = false, draggedNodeId = null, nodeDragOffsetX = 0, nodeDragOffsetY = 0;
+        let nodeDimensions = {};
+
+        // --- Initialization ---
+        function initializeMap() {
+            mindMapElement.innerHTML = ''; // Clear previous elements
+            connectors = [];
+            nodeDimensions = {};
+            Object.keys(nodes).forEach(key => delete nodes[key]); // Clear node cache
+
+            // Add Legend
+            const legendContainer = document.createElement('div');
+            legendContainer.className = 'legend-container';
+            legendContainer.innerHTML = `
+                 <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-0-color);"></div><span>Ana Konu</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-color);"></div><span>Parçacık Türü</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-1-color);"></div><span>Yüksüz</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-2-color);"></div><span>Yüklü</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-2-1-color);"></div><span>E Alanı</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-2-2-border);"></div><span>B Alanı</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--level-1-2-3-color);"></div><span>Birleşik</span></div>
+                 </div>`;
+            mindMapElement.appendChild(legendContainer);
+
+            // Reset view state
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            currentScale = 1;
+            applyMapTransform(); // Apply initial transform
+
+            // Calculate and draw
+            preCalculateNodeSizes(mindMapData);
+            calculateLayout();
+            createElements();
+            drawConnectors();
+
+            // Render MathJax
+            if (window.MathJax?.typesetPromise) {
+                window.MathJax.typesetPromise([mindMapElement]).catch(err => console.error('MathJax Error:', err));
+            } else if (window.MathJax?.typeset) { // Fallback for older MathJax versions maybe?
+                 window.MathJax.typeset([mindMapElement]);
+            }
+
+            collapseAllNodes(); // Start collapsed
+        }
+
+        // --- Layout Calculation ---
+        function preCalculateNodeSizes(nodeData) {
+             // Create a temporary node off-screen to measure its dimensions
+             const tempNode = document.createElement('div');
+             tempNode.className = `node ${nodeData.level || ''}`;
+             tempNode.style.cssText = 'position:absolute; visibility:hidden; left:-9999px; top: -9999px; max-width:320px;'; // Ensure max-width is applied
+             tempNode.innerHTML = getNodeHTML(nodeData);
+             document.body.appendChild(tempNode); // Add to body to calculate styles
+
+             // Store dimensions
+             nodeDimensions[nodeData.id] = { w: tempNode.offsetWidth, h: tempNode.offsetHeight };
+             document.body.removeChild(tempNode); // Clean up
+
+             // Recurse for children
+             if (nodeData.children) {
+                 nodeData.children.forEach(child => preCalculateNodeSizes(child));
+             }
+        }
+
+        function calculateLayout() {
+            // Start layout calculation from the root
+            calculateNodePositions(mindMapData, layoutSettings.rootX, layoutSettings.rootY, null);
+        }
+
+        function calculateNodePositions(nodeData, currentX, currentY, parentNodeInfo = null) {
+            // Get pre-calculated or default dimensions
+            const dimensions = nodeDimensions[nodeData.id] || { w: 200, h: 100 };
+            const nodeW = dimensions.w;
+            const nodeH = dimensions.h;
+
+            // Store node info including position and dimensions
+            nodes[nodeData.id] = {
+                element: null, // DOM element will be added later
+                data: nodeData,
+                x: currentX,
+                y: currentY,
+                width: nodeW,
+                height: nodeH,
+                childrenVisible: true, // Initially visible
+                parentId: parentNodeInfo ? parentNodeInfo.data.id : null,
+                childrenIds: (nodeData.children || []).map(child => child.id),
+                subtreeHeight: nodeH // Start with own height
+            };
+
+            const currentNodeInfo = nodes[nodeData.id];
+
+            if (currentNodeInfo.childrenIds.length > 0) {
+                const childX = currentX + nodeW + layoutSettings.hLevelGap; // Position children horizontally
+                let totalChildSubtreeHeight = 0;
+                const childSubtreeHeights = [];
+
+                // Recursively calculate positions and heights for children first
+                currentNodeInfo.childrenIds.forEach(childId => {
+                    const childData = findNodeData(mindMapData, childId);
+                    if (childData) {
+                        // Recursively call, passing childX but temporary Y (0)
+                        const childHeight = calculateNodePositions(childData, childX, 0, currentNodeInfo);
+                        childSubtreeHeights.push(childHeight);
+                    } else {
+                        childSubtreeHeights.push(0); // Should not happen if data is consistent
+                    }
+                });
+
+                // Calculate total height needed for children block including padding
+                totalChildSubtreeHeight = childSubtreeHeights.reduce((sum, h) => sum + h, 0) +
+                                           Math.max(0, childSubtreeHeights.length - 1) * layoutSettings.vNodePadding;
+
+                // Determine starting Y for the children block to center it vertically relative to the parent
+                const parentCenterY = currentY + nodeH / 2;
+                let childStartY = parentCenterY - totalChildSubtreeHeight / 2;
+
+                // Now, position each child subtree vertically
+                let nextChildY = childStartY;
+                currentNodeInfo.childrenIds.forEach((childId, index) => {
+                    const childNodeInfo = nodes[childId];
+                    if (childNodeInfo) {
+                        const childSubtreeH = childSubtreeHeights[index];
+                        // Center the child block vertically
+                        const childBlockCenterY = nextChildY + childSubtreeH / 2;
+                        // Calculate the final Y for the child node itself (top edge)
+                        const finalChildY = childBlockCenterY - childNodeInfo.height / 2;
+                        // Shift the entire subtree (which was calculated relative to Y=0)
+                        const yShift = finalChildY; // Amount to shift from the temporary Y=0
+                        shiftSubtreeVertical(childId, yShift);
+
+                        nextChildY += childSubtreeH + layoutSettings.vNodePadding; // Move to the next child's block start
+                    }
+                });
+
+                // Update parent's subtree height
+                currentNodeInfo.subtreeHeight = Math.max(nodeH, totalChildSubtreeHeight);
+            }
+
+            // Return the calculated height of the subtree rooted at this node
+            return currentNodeInfo.subtreeHeight;
+        }
+
+        function findNodeData(startNodeData, targetId) {
+            if (startNodeData.id === targetId) return startNodeData;
+            if (startNodeData.children) {
+                for (const child of startNodeData.children) {
+                    const found = findNodeData(child, targetId);
+                    if (found) return found;
+                }
+            }
+            return null; // Not found
+        }
+
+        function shiftSubtreeVertical(nodeId, shiftY) {
+            const nodeInfo = nodes[nodeId];
+            if (!nodeInfo) return;
+            nodeInfo.y += shiftY; // Adjust Y position
+            // Recursively shift all children
+            nodeInfo.childrenIds.forEach(childId => {
+                shiftSubtreeVertical(childId, shiftY);
+            });
+        }
+
+        function createElements() {
+            // Create DOM elements for all nodes based on calculated positions
+            Object.values(nodes).forEach(nodeInfo => {
+                createNodeElement(nodeInfo);
+            });
+        }
+
+        // --- DOM Element Creation & Connectors ---
+        function createNodeElement(nodeInfo) {
+            const nodeData = nodeInfo.data;
+            const node = document.createElement('div');
+            node.className = `node ${nodeData.level || ''}`;
+            node.id = nodeData.id;
+            node.dataset.level = nodeData.level;
+            node.innerHTML = getNodeHTML(nodeData);
+
+            // Set initial position and size (will be updated on drag)
+            node.style.left = `${nodeInfo.x}px`;
+            node.style.top = `${nodeInfo.y}px`;
+            node.style.width = `${nodeInfo.width}px`;
+            node.style.height = `${nodeInfo.height}px`; // Use calculated height
+
+            mindMapElement.appendChild(node);
+            nodeInfo.element = node; // Store reference to the DOM element
+
+            // Set up event listeners for this node
+            setupNodeEvents(node, nodeData);
+        }
+
+        function getNodeHTML(nodeData) {
+             // Generates the inner HTML for a node
+             let titleHTML = `<div class="node-title">`;
+             if (nodeData.icon) titleHTML += `<span class="icon">${nodeData.icon}</span>`;
+             titleHTML += `<span>${nodeData.title}</span>`;
+             // Container for icons on the right
+             titleHTML += `<div>`;
+             if (nodeData.tooltip) {
+                 // Use escapeHTML to prevent XSS from tooltip content
+                 titleHTML += `<span class="info-icon" data-tooltip="${escapeHTML(nodeData.tooltip)}">?</span>`;
+             }
+             if (nodeData.children?.length) {
+                 // Add toggle button only if there are children
+                 titleHTML += `<span class="toggle-btn" data-node-id="${nodeData.id}"></span>`; // Default is '-' (open)
+             }
+             titleHTML += `</div></div>`; // Close icon container and title div
+
+             let contentHTML = '';
+             if (nodeData.content) {
+                 // Simple replacement for escaped MathJax delimiters if needed
+                 const processedContent = nodeData.content
+                    // .replace(/\\\\/g, '\\') // Example if double escapes were used
+                    // .replace(/\\\(/g, '\\(')
+                    // .replace(/\\\)/g, '\\)')
+                    // .replace(/\\\[/g, '\\[')
+                    // .replace(/\\\]/g, '\\]');
+                 contentHTML = `<div class="node-content">${nodeData.content}</div>`; // Use original content for now
+             }
+             return titleHTML + contentHTML;
+         }
+
+        function drawConnectors() {
+            // Clear existing connectors
+            connectors.forEach(conn => conn.element?.remove());
+            connectors = [];
+
+            // Create new connectors
+            Object.values(nodes).forEach(nodeInfo => {
+                if (nodeInfo.parentId && nodes[nodeInfo.parentId]) {
+                    const parentInfo = nodes[nodeInfo.parentId];
+                    const connector = createConnectorElement(parentInfo, nodeInfo);
+                    if (connector) {
+                        // Add connector element before other elements for lower z-index
+                        mindMapElement.insertBefore(connector.element, mindMapElement.firstChild);
+                        connectors.push(connector);
+                    }
+                }
+            });
+            updateConnectorPositions(); // Position them correctly
+        }
+
+        function createConnectorElement(fromNodeInfo, toNodeInfo) {
+            // Check if both nodes exist and have elements
+            if (!fromNodeInfo?.element || !toNodeInfo?.element) return null;
+
+            const connectorEl = document.createElement('div');
+            connectorEl.className = 'connector';
+            connectorEl.dataset.from = fromNodeInfo.data.id;
+            connectorEl.dataset.to = toNodeInfo.data.id;
+            return {
+                element: connectorEl,
+                fromId: fromNodeInfo.data.id,
+                toId: toNodeInfo.data.id
+            };
+        }
+
+        function updateConnectorPositions() {
+            connectors.forEach(conn => {
+                const fromNode = nodes[conn.fromId];
+                const toNode = nodes[conn.toId];
+
+                // Check if nodes and their elements exist
+                if (!fromNode || !toNode || !fromNode.element || !toNode.element) {
+                    if (conn.element) conn.element.classList.add('hidden'); // Hide connector if node is missing
+                    return;
+                }
+
+                // Hide connector if either node is hidden (e.g., due to collapse)
+                if (toNode.element.classList.contains('hidden') || fromNode.element.classList.contains('hidden')) {
+                    conn.element.classList.add('hidden');
+                    return;
+                }
+                conn.element.classList.remove('hidden'); // Ensure visible if nodes are visible
+
+                // Calculate connector position and rotation (based on node map coordinates)
+                const fromX = fromNode.x + fromNode.width; // Right edge of parent
+                const fromY = fromNode.y + fromNode.height / 2; // Middle of parent
+                const toX = toNode.x; // Left edge of child
+                const toY = toNode.y + toNode.height / 2; // Middle of child
+
+                const deltaX = toX - fromX;
+                const deltaY = toY - fromY;
+                const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const angle = Math.atan2(deltaY, deltaX); // Angle in radians
+
+                // Apply styles to the connector element
+                conn.element.style.width = `${length}px`;
+                conn.element.style.left = `${fromX}px`;
+                conn.element.style.top = `${fromY}px`;
+                conn.element.style.transform = `rotate(${angle}rad)`;
+            });
+        }
+
+        function updateNodeConnectors(nodeId) {
+             // More efficient update, only recalculates connectors attached to the dragged node
+             connectors.forEach(conn => {
+                 if (conn.fromId === nodeId || conn.toId === nodeId) {
+                     const fromNode = nodes[conn.fromId];
+                     const toNode = nodes[conn.toId];
+
+                     if (!fromNode || !toNode || !fromNode.element || !toNode.element) {
+                         if(conn.element) conn.element.classList.add('hidden');
+                         return;
+                     }
+                     if (toNode.element.classList.contains('hidden') || fromNode.element.classList.contains('hidden')) {
+                         conn.element.classList.add('hidden');
+                         return;
+                     }
+                     conn.element.classList.remove('hidden');
+
+                     const fromX = fromNode.x + fromNode.width;
+                     const fromY = fromNode.y + fromNode.height / 2;
+                     const toX = toNode.x;
+                     const toY = toNode.y + toNode.height / 2;
+
+                     const deltaX = toX - fromX;
+                     const deltaY = toY - fromY;
+                     const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                     const angle = Math.atan2(deltaY, deltaX);
+
+                     conn.element.style.width = `${length}px`;
+                     conn.element.style.left = `${fromX}px`;
+                     conn.element.style.top = `${fromY}px`;
+                     conn.element.style.transform = `rotate(${angle}rad)`;
+                 }
+             });
+         }
+
+        // --- Event Setup ---
+        function setupNodeEvents(nodeElement, nodeData) {
+            // Toggle Button
+            const toggleBtn = nodeElement.querySelector('.toggle-btn');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent node drag start
+                    toggleChildrenVisibility(nodeData.id);
+                });
+            }
+
+            // Info Icon (Tooltip)
+            const infoIcon = nodeElement.querySelector('.info-icon');
+            if (infoIcon) {
+                infoIcon.addEventListener('mouseenter', (e) => showTooltip(infoIcon.dataset.tooltip, e.clientX, e.clientY));
+                infoIcon.addEventListener('mouseleave', hideTooltip);
+                infoIcon.addEventListener('mousemove', (e) => moveTooltip(e.clientX, e.clientY)); // Update position on move
+            }
+
+            // Highlight Path on Hover
+            nodeElement.addEventListener('mouseenter', () => {
+                if (!isNodeDragging) { // Don't highlight during drag
+                    highlightPath(nodeData.id, true);
+                }
+            });
+            nodeElement.addEventListener('mouseleave', () => {
+                if (!isNodeDragging) {
+                    highlightPath(nodeData.id, false);
+                }
+            });
+
+            // Node Dragging Start (mousedown) - UPDATED FOR SCALE
+            nodeElement.addEventListener('mousedown', (e) => {
+                // Ignore clicks on interactive elements within the node
+                if (e.target.closest('.toggle-btn') || e.target.closest('.info-icon')) return;
+
+                e.preventDefault(); // Prevent text selection
+                e.stopPropagation(); // Prevent map panning start
+
+                isNodeDragging = true;
+                draggedNodeId = nodeData.id;
+                nodeElement.classList.add('dragging');
+                mindMapViewport.classList.add('dragging-node'); // For cursor style
+
+                const nodeInfo = nodes[draggedNodeId];
+                const viewportRect = mindMapViewport.getBoundingClientRect();
+
+                // Calculate mouse position relative to the viewport
+                const mouseViewportX = e.clientX - viewportRect.left;
+                const mouseViewportY = e.clientY - viewportRect.top;
+
+                // Convert viewport mouse position to the map's unscaled coordinate system
+                const mapMouseX = (mouseViewportX - currentTranslateX) / currentScale;
+                const mapMouseY = (mouseViewportY - currentTranslateY) / currentScale;
+
+                // Calculate the offset from the node's top-left corner in map coordinates
+                nodeDragOffsetX = mapMouseX - nodeInfo.x;
+                nodeDragOffsetY = mapMouseY - nodeInfo.y;
+
+                // Add global listeners for move and up
+                document.addEventListener('mousemove', handleNodeMouseMove);
+                document.addEventListener('mouseup', handleNodeMouseUp, { once: true }); // Use once for cleanup
+            });
+        }
+
+        // Node Dragging Move (mousemove) - UPDATED FOR SCALE
+        function handleNodeMouseMove(e) {
+            if (!isNodeDragging || !draggedNodeId) return;
+
+            const nodeInfo = nodes[draggedNodeId];
+            if (!nodeInfo || !nodeInfo.element) return; // Should not happen
+
+            const viewportRect = mindMapViewport.getBoundingClientRect();
+
+            // Calculate mouse position relative to the viewport
+            const mouseViewportX = e.clientX - viewportRect.left;
+            const mouseViewportY = e.clientY - viewportRect.top;
+
+            // Convert viewport mouse position to the map's unscaled coordinate system
+            const mapMouseX = (mouseViewportX - currentTranslateX) / currentScale;
+            const mapMouseY = (mouseViewportY - currentTranslateY) / currentScale;
+
+            // Calculate the new node top-left position in map coordinates
+            let newX = mapMouseX - nodeDragOffsetX;
+            let newY = mapMouseY - nodeDragOffsetY;
+
+            // Update node state (map coordinates)
+            nodeInfo.x = newX;
+            nodeInfo.y = newY;
+
+            // Update node element style (position relative to #mind-map)
+            nodeInfo.element.style.left = `${newX}px`;
+            nodeInfo.element.style.top = `${newY}px`;
+
+            // Update attached connectors efficiently (using map coordinates)
+            // Use requestAnimationFrame to batch updates for performance
+            requestAnimationFrame(() => updateNodeConnectors(draggedNodeId));
+        }
+
+        // Node Dragging End (mouseup)
+        function handleNodeMouseUp(e) {
+            if (!isNodeDragging || !draggedNodeId) return;
+
+            const nodeElement = nodes[draggedNodeId]?.element;
+            if (nodeElement) {
+                nodeElement.classList.remove('dragging');
+            }
+            mindMapViewport.classList.remove('dragging-node'); // Reset viewport cursor
+
+            // Clear dragging state
+            isNodeDragging = false;
+            draggedNodeId = null;
+
+            // Remove global listeners
+            document.removeEventListener('mousemove', handleNodeMouseMove);
+            // mouseup listener removed automatically by { once: true }
+        }
+
+
+        // --- Visibility & Highlight ---
+        function highlightPath(nodeId, highlight) {
+            const nodeInfo = nodes[nodeId];
+            if (!nodeInfo?.element) return;
+
+            // Highlight the node itself
+            nodeInfo.element.classList.toggle('highlight', highlight);
+
+            // Highlight incoming connector (from parent)
+            const incomingConnector = connectors.find(c => c.toId === nodeId);
+            if (incomingConnector?.element) {
+                incomingConnector.element.classList.toggle('highlight', highlight);
+                // Optionally highlight the parent node as well
+                // nodes[incomingConnector.fromId]?.element.classList.toggle('highlight-parent', highlight);
+            }
+
+            // Highlight outgoing connectors (to children)
+            connectors.filter(c => c.fromId === nodeId).forEach(conn => {
+                if (conn.element) {
+                    conn.element.classList.toggle('highlight', highlight);
+                    // Optionally highlight children nodes
+                     // nodes[conn.toId]?.element.classList.toggle('highlight-child', highlight);
+                }
+            });
+        }
+
+        function toggleChildrenVisibility(nodeId) {
+            const nodeInfo = nodes[nodeId];
+            if (!nodeInfo?.childrenIds?.length) return; // No children to toggle
+
+            nodeInfo.childrenVisible = !nodeInfo.childrenVisible; // Flip visibility state
+
+            // Update toggle button appearance
+            nodeInfo.element?.querySelector('.toggle-btn')?.classList.toggle('closed', !nodeInfo.childrenVisible);
+
+            // Recursively update visibility of the entire subtree
+            nodeInfo.childrenIds.forEach(childId => {
+                setSubtreeVisibility(childId, nodeInfo.childrenVisible);
+            });
+
+            // Update connectors after visibility changes
+            updateConnectorPositions();
+        }
+
+        function setSubtreeVisibility(nodeId, isVisible) {
+             const nodeInfo = nodes[nodeId];
+             if (!nodeInfo?.element) return;
+
+             const parentInfo = nodes[nodeInfo.parentId];
+             // Determine if the node itself should be shown:
+             // It should be shown if the desired state is visible AND its parent is currently visible (or it's the root)
+             const shouldShow = isVisible && (nodeInfo.parentId === null || (parentInfo && !parentInfo.element.classList.contains('hidden')));
+
+             nodeInfo.element.classList.toggle('hidden', !shouldShow);
+
+             // If this node has children, decide their visibility
+             if (nodeInfo.childrenIds?.length) {
+                 // Children should only be shown if this node is shown AND its own toggle state is 'open'
+                 const showChildren = shouldShow && nodeInfo.childrenVisible;
+
+                 // Ensure toggle button reflects internal state even if node is hidden
+                 nodeInfo.element?.querySelector('.toggle-btn')?.classList.toggle('closed', !nodeInfo.childrenVisible);
+
+                 // Recursively apply visibility to children
+                 nodeInfo.childrenIds.forEach(childId => {
+                     setSubtreeVisibility(childId, showChildren);
+                 });
+             }
+         }
+
+
+        // --- Tooltip Functions ---
+        function showTooltip(text, x, y) {
+            tooltipElement.innerHTML = text; // Use innerHTML cautiously if text isn't sanitized
+            tooltipElement.style.opacity = '1';
+            moveTooltip(x, y); // Position it initially
+        }
+
+        function moveTooltip(x, y) {
+            if (tooltipElement.style.opacity === '0') return; // Don't move if hidden
+
+            const offsetX = 15; // Offset from cursor
+            const offsetY = 15;
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+            const tipWidth = tooltipElement.offsetWidth;
+            const tipHeight = tooltipElement.offsetHeight;
+
+            let finalX = x + offsetX;
+            let finalY = y + offsetY;
+
+            // Adjust position to keep tooltip within window bounds
+            if (finalX + tipWidth > winWidth) {
+                finalX = x - tipWidth - offsetX; // Flip to left
+            }
+            if (finalY + tipHeight > winHeight) {
+                finalY = y - tipHeight - offsetY; // Flip to top
+            }
+            if (finalX < 0) finalX = 0; // Prevent going off left edge
+            if (finalY < 0) finalY = 0; // Prevent going off top edge
+
+            tooltipElement.style.left = `${finalX}px`;
+            tooltipElement.style.top = `${finalY}px`;
+        }
+
+        function hideTooltip() {
+            tooltipElement.style.opacity = '0';
+        }
+
+        function escapeHTML(str) {
+            // Basic HTML escaping to prevent XSS in tooltips/node content if needed
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+
+        // --- Map Panning & Zooming Logic ---
+
+        // Updated applyMapTransform to include scale
+        function applyMapTransform() {
+            // Apply translation and scaling to the #mind-map element
+            mindMapElement.style.transformOrigin = 'top left'; // Crucial for calculations
+            mindMapElement.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentScale})`;
+        }
+
+        // Panning Start (mousedown on viewport background)
+        mindMapViewport.addEventListener('mousedown', (e) => {
+            // Start panning ONLY if not clicking on a node (or its interactive parts)
+            // and not already dragging a node
+            if (!isNodeDragging && (e.target === mindMapViewport || e.target === mindMapElement)) {
+                isMapDragging = true;
+                // Store starting mouse position relative to initial translation
+                startMapDragX = e.clientX - currentTranslateX;
+                startMapDragY = e.clientY - currentTranslateY;
+                mindMapViewport.classList.add('dragging-map'); // For cursor style
+                e.preventDefault(); // Prevent text selection, etc.
+            }
+        });
+
+        // Panning Move (mousemove on viewport/document)
+        mindMapViewport.addEventListener('mousemove', (e) => {
+            if (!isMapDragging || isNodeDragging) return; // Only pan if map dragging is active
+
+            // Calculate new translation based on mouse movement
+            currentTranslateX = e.clientX - startMapDragX;
+            currentTranslateY = e.clientY - startMapDragY;
+            applyMapTransform();
+            hideTooltip(); // Hide tooltip during pan
+        });
+
+        // Panning/Node Dragging End (mouseup, mouseleave on viewport)
+        const stopDragging = (e) => {
+             // Check if map dragging was active
+             if (isMapDragging) {
+                isMapDragging = false;
+                mindMapViewport.classList.remove('dragging-map');
+             }
+            // Node dragging end is handled separately in handleNodeMouseUp
+        };
+        // Use 'mouseup' on the viewport or document to catch mouseup outside the viewport
+        document.addEventListener('mouseup', stopDragging);
+        mindMapViewport.addEventListener('mouseleave', (e) => {
+            // Only stop map dragging if the mouse truly left the viewport while dragging
+            if (isMapDragging) {
+                 stopDragging(e);
+            }
+        });
+
+
+        // NEW: Zooming (wheel event on viewport)
+        mindMapViewport.addEventListener('wheel', (e) => {
+            e.preventDefault(); // Prevent default page scroll behavior
+
+            const delta = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor; // Determine zoom direction
+            const newScale = Math.max(minScale, Math.min(maxScale, currentScale * delta)); // Calculate and clamp new scale
+
+            if (newScale === currentScale) return; // No change if clamped at limits
+
+            // --- Calculate zoom point relative to the map ---
+            const viewportRect = mindMapViewport.getBoundingClientRect();
+            // Mouse position relative to the viewport's top-left corner
+            const mouseViewportX = e.clientX - viewportRect.left;
+            const mouseViewportY = e.clientY - viewportRect.top;
+
+            // Calculate the mouse pointer's corresponding position on the UNscaled map BEFORE zoom
+            const mapMouseX_before = (mouseViewportX - currentTranslateX) / currentScale;
+            const mapMouseY_before = (mouseViewportY - currentTranslateY) / currentScale;
+
+            // --- Calculate the new translation ---
+            // The goal is to keep the map point (mapMouseX_before, mapMouseY_before)
+            // under the mouse pointer (mouseViewportX, mouseViewportY) AFTER scaling.
+            // We know: mouseViewportX = newTranslateX + mapMouseX_before * newScale
+            // So: newTranslateX = mouseViewportX - mapMouseX_before * newScale
+            currentTranslateX = mouseViewportX - mapMouseX_before * newScale;
+            currentTranslateY = mouseViewportY - mapMouseY_before * newScale;
+            currentScale = newScale; // Update the scale
+
+            applyMapTransform(); // Apply the new transform
+            hideTooltip(); // Hide tooltip during zoom
+        }, { passive: false }); // passive: false is required for preventDefault() inside wheel listener
+
+
+        // --- Control Button Actions ---
+        function collapseAllNodes() {
+             Object.values(nodes).forEach(nodeInfo => {
+                 if (!nodeInfo || !nodeInfo.element) return;
+                 // Collapse nodes with children
+                 if (nodeInfo.childrenIds?.length) {
+                     nodeInfo.childrenVisible = false;
+                     nodeInfo.element.querySelector('.toggle-btn')?.classList.add('closed');
+                 }
+                 // Hide all nodes except the root
+                 if (nodeInfo.parentId !== null) {
+                     nodeInfo.element.classList.add('hidden');
+                 } else {
+                     // Ensure root is visible
+                     nodeInfo.element.classList.remove('hidden');
+                 }
+             });
+             updateConnectorPositions(); // Update connectors based on new visibility
+         }
+
+        expandAllBtn.addEventListener('click', () => {
+            Object.values(nodes).forEach(nodeInfo => {
+                if (!nodeInfo || !nodeInfo.element) return;
+                // Expand nodes with children
+                if (nodeInfo.childrenIds?.length) {
+                    nodeInfo.childrenVisible = true;
+                    nodeInfo.element.querySelector('.toggle-btn')?.classList.remove('closed');
+                }
+                // Make all nodes visible
+                nodeInfo.element.classList.remove('hidden');
+            });
+            updateConnectorPositions(); // Update connectors
+        });
+
+        collapseAllBtn.addEventListener('click', collapseAllNodes);
+
+        resetViewBtn.addEventListener('click', () => {
+            // Reset translation and scale to initial values
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            currentScale = 1;
+            applyMapTransform();
+            collapseAllNodes(); // Also collapse nodes on reset
+        });
+
+        recalculateLayoutBtn.addEventListener('click', () => {
+            // Re-initialize the entire map (useful if node content changes dynamically)
+            // This will reset positions, scale, and collapse state.
+            initializeMap();
+        });
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', initializeMap);
+
+    </script>
+
+</body>
+</html>
