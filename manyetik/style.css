@@ -1,0 +1,391 @@
+/* --- START OF FILE style.css --- */
+
+:root {
+    --bg-color: #f4f7f9;
+    --container-bg: #ffffff;
+    --controls-bg: #e9edf0;
+    --canvas-bg: #dde4ec; /* Background for both 2D canvas and 3D area */
+    --canvas-border: #aab1bb;
+    --text-color: #24292e;
+    --text-secondary: #586069;
+    --highlight-color: #0366d6;
+    --positive-color: #d73a49; /* Red */
+    --negative-color: #0366d6; /* Blue */
+    --neutral-color: #6a737d;  /* Gray */
+    --trail-color: rgba(40, 40, 40, 0.5); /* Darker trail */
+    --border-radius: 6px;
+    --shadow-color: rgba(0, 0, 0, 0.08);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: var(--container-bg);
+    padding: 25px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 5px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.container > p {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+
+/* --- Simulation Area Styling --- */
+.simulation-area {
+    position: relative; /* Needed for absolute positioning of indicators */
+    display: flex; /* Use flex to center content */
+    justify-content: center;
+    align-items: center;
+    min-height: 500px; /* Ensure area has height even if content is hidden */
+    width: 100%; /* Take full width */
+    max-width: 800px; /* Max width like original canvas */
+    margin: 0 auto 20px auto; /* Center the area horizontally */
+    border: 2px solid var(--canvas-border); /* Border around the whole area */
+    background-color: var(--canvas-bg); /* Background for the whole area */
+    overflow: hidden; /* Hide content sticking out */
+}
+
+/* Wrapper to hold both 2D canvas and 3D container */
+#simulationWrapper {
+    position: relative; /* Or absolute if needed within simulation-area */
+    width: 100%;
+    height: 100%;
+    min-height: 500px; /* Match simulation-area height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 2D Canvas Styling */
+#simulationCanvas {
+    border: none; /* Border is now on simulation-area */
+    cursor: crosshair;
+    display: block; /* Default display state */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure it fits within wrapper if needed */
+    /* background-color: var(--canvas-bg); /* Background set on area now */
+}
+
+/* 3D Container Styling */
+#simulation3DContainer {
+    width: 100%;
+    height: 100%;
+    min-height: 500px; /* Match simulation-area height */
+    cursor: grab; /* Indicate 3D interaction */
+    overflow: hidden; /* Ensure canvas fits */
+    display: flex; /* Center potential messages or the renderer canvas */
+    justify-content: center;
+    align-items: center;
+}
+/* Style the canvas created by Three.js */
+#simulation3DContainer canvas {
+    display: block; /* Prevent extra space under the three.js canvas */
+    width: 100% !important; /* Force full width */
+    height: 100% !important; /* Force full height */
+}
+
+
+/* --- View Toggling Classes --- */
+/* Default state (view-2d) */
+.view-2d #simulationCanvas {
+    display: block; /* Show 2D canvas */
+}
+.view-2d #simulation3DContainer {
+    display: none; /* Hide 3D container */
+}
+
+/* When view-3d class is active */
+.view-3d #simulationCanvas {
+    display: none; /* Hide 2D canvas */
+}
+.view-3d #simulation3DContainer {
+    display: flex; /* Show 3D container */
+}
+
+
+/* Field Indicators Styling */
+.field-indicators {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    pointer-events: none; /* Allow clicks through */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 10; /* Ensure it's above the canvas/3D view */
+}
+.field-indicators div { margin-bottom: 4px; }
+.field-indicators div:last-child { margin-bottom: 0; }
+.field-indicators span { font-weight: bold; color: var(--text-color); }
+
+/* --- Controls Styling --- */
+.controls {
+    background-color: var(--controls-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+fieldset {
+    border: 1px solid var(--canvas-border);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    min-width: 0; /* Prevent fieldset overflow in grid */
+}
+
+legend {
+    font-weight: 600;
+    padding: 0 8px;
+    color: var(--highlight-color);
+    font-size: 1.05em;
+}
+
+.control-group {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping */
+    align-items: center;
+    gap: 10px;
+}
+.control-group:last-child {
+    margin-bottom: 5px;
+}
+
+.control-group label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex: 1 1 180px; /* Allow shrinking/growing, prefer 180px */
+    margin-right: 5px; /* Spacing between label and input */
+}
+
+.control-group input[type="range"] {
+    flex: 2 1 150px; /* Take more space */
+    cursor: pointer;
+    min-width: 120px;
+    height: 5px;
+    accent-color: var(--highlight-color);
+}
+
+.control-group select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--canvas-border);
+    background-color: white;
+    flex: 1 1 auto; /* Allow select to grow/shrink */
+}
+
+.control-group span { /* Value indicators */
+    font-weight: 500;
+    min-width: 50px;
+    text-align: right;
+    background-color: #fff;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    border: 1px solid #ccc;
+}
+
+/* Button Group Styling */
+.control-group.buttons {
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap; /* Ensure buttons wrap */
+}
+
+button {
+    padding: 10px 18px;
+    background-color: var(--highlight-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+button:hover {
+    background-color: #005cc5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+button:active {
+    background-color: #004ca3;
+    transform: translateY(1px);
+}
+
+/* Specific Button Styles */
+#resetButton, #clearTrailsButton, #resetFieldsButton {
+    background-color: var(--neutral-color);
+}
+#resetButton:hover, #clearTrailsButton:hover, #resetFieldsButton:hover {
+    background-color: #586069;
+}
+#resetButton:active, #clearTrailsButton:active, #resetFieldsButton:active {
+    background-color: #444d56;
+}
+#toggleViewButton { /* Style for the 2D/3D toggle button */
+    background-color: #28a745; /* Green */
+}
+#toggleViewButton:hover {
+    background-color: #218838;
+}
+#toggleViewButton:active {
+    background-color: #1e7e34;
+}
+
+/* Info Box Styling */
+.info-box {
+    background-color: #f8f9fa;
+    border: 1px solid var(--canvas-border);
+    padding: 15px 20px;
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.info-box h2 {
+    color: var(--highlight-color);
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--canvas-border);
+    padding-bottom: 5px;
+}
+.info-box ul {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+.info-box li {
+    margin-bottom: 6px;
+}
+.info-box code {
+    background-color: #e9ecef;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    border: 1px solid #ced4da;
+    font-size: 0.95em;
+}
+.info-box p {
+    margin-bottom: 10px;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    .container {
+        padding: 15px;
+    }
+    .controls {
+        grid-template-columns: 1fr; /* Stack controls vertically */
+        padding: 15px;
+        gap: 20px;
+    }
+    .control-group {
+        flex-direction: column; /* Stack label, input, value */
+        align-items: stretch; /* Stretch elements full width */
+        gap: 8px;
+    }
+    .control-group label {
+        min-width: auto;
+        flex-basis: auto;
+        margin-bottom: 4px;
+        margin-right: 0; /* Remove right margin */
+        text-align: left;
+    }
+    .control-group input[type="range"] {
+       width: 100%;
+       flex-basis: auto;
+    }
+    .control-group span { /* Value indicator */
+       text-align: left;
+       align-self: flex-start; /* Align to start */
+       min-width: auto;
+       margin-top: 2px; /* Add small space */
+    }
+     .control-group select {
+       width: 100%;
+    }
+    .control-group.buttons {
+        flex-direction: row; /* Keep buttons in a row */
+        justify-content: space-around; /* Space them out */
+    }
+    button {
+        flex-grow: 1; /* Allow buttons to grow */
+        min-width: 110px; /* Minimum button width */
+        text-align: center;
+    }
+    .simulation-area {
+        /* Adjust min-height if needed for smaller screens */
+        min-height: 400px;
+    }
+    #simulationWrapper, #simulation3DContainer {
+        min-height: 400px;
+    }
+    .field-indicators {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 { font-size: 1.5rem; }
+    .container > p { font-size: 0.9rem; }
+    .control-group.buttons {
+        flex-direction: column; /* Stack buttons */
+        align-items: stretch; /* Stretch buttons */
+    }
+    button {
+        width: 100%;
+        min-width: unset; /* Remove min-width */
+    }
+    .simulation-area {
+        min-height: 350px; /* Further reduce height */
+    }
+     #simulationWrapper, #simulation3DContainer {
+        min-height: 350px;
+    }
+    .field-indicators {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        max-width: calc(100% - 20px); /* Prevent overflow */
+    }
+}
+
+/* --- END OF FILE style.css --- */

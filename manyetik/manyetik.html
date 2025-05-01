@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etkileşimli Parçacık Simülasyonu (E ve B Alanları) - 2D/3D Optimize</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include Three.js library (r128 or later recommended for InstancedMesh color) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for 3D camera interaction -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Optional: Stats.js for performance monitoring -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script> -->
+</head>
+<body>
+    <div class="container">
+        <h1>Elektromanyetik Alanlarda Parçacık Simülasyonu (2D/3D Optimize)</h1>
+        <p>Parçacık türünü, başlangıç hızını ve alanları ayarlayarak hareketi gözlemleyin. Aktif alana tıklayarak parçacık ekleyin.</p>
+
+        <!-- Simulation Area with Wrapper -->
+        <div class="simulation-area">
+            <div id="simulationWrapper" class="view-2d">
+                 <canvas id="simulationCanvas"></canvas>
+                 <!-- Container for Three.js rendering -->
+                 <div id="simulation3DContainer"></div>
+            </div>
+            <div class="field-indicators">
+                <div id="e-field-indicator">E Alanı: <span>Yok</span></div>
+                <div id="b-field-indicator">B Alanı: <span>Yok</span></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <!-- Fieldset 1: Parçacık Ayarları -->
+             <fieldset>
+                 <legend>Parçacık Ayarları</legend>
+                 <div class="control-group">
+                    <label for="chargeType">Yük Türü:</label>
+                    <select id="chargeType">
+                        <option value="1">Pozitif (+q)</option>
+                        <option value="0">Nötr (0)</option>
+                        <option value="-1">Negatif (-q)</option>
+                    </select>
+                    <label for="mass">Kütle (m):</label>
+                    <input type="range" id="mass" min="1" max="10" value="1" step="1">
+                    <span id="massValue">1</span> m₀
+                </div>
+                 <div class="control-group">
+                    <label for="initialVx">Başlangıç Hızı Vx (Sağ+/Sol-):</label>
+                    <input type="range" id="initialVx" min="-100" max="100" value="50" step="5">
+                    <span id="initialVxValue">50</span> v₀
+                </div>
+                 <div class="control-group">
+                     <!-- CORRECTED LABEL -->
+                     <label for="initialVy">Başlangıç Hızı Vy (Yukarı+/Aşağı-):</label>
+                    <input type="range" id="initialVy" min="-100" max="100" value="0" step="5">
+                    <span id="initialVyValue">0</span> v₀
+                </div>
+                 <!-- Removed Initial Vz -->
+            </fieldset>
+
+            <!-- Fieldset 2: Alan Ayarları -->
+            <fieldset>
+                <legend>Alan Ayarları</legend>
+                 <div class="control-group">
+                     <label for="electricFieldX">Elektrik Alan Ex (Sağ+/Sol-):</label>
+                    <input type="range" id="electricFieldX" min="-10" max="10" value="0" step="0.5">
+                    <span id="electricFieldXValue">0</span> E₀
+                </div>
+                 <div class="control-group">
+                     <!-- CORRECTED LABEL -->
+                     <label for="electricFieldY">Elektrik Alan Ey (Yukarı+/Aşağı-):</label>
+                    <input type="range" id="electricFieldY" min="-10" max="10" value="0" step="0.5">
+                    <span id="electricFieldYValue">0</span> E₀
+                </div>
+                 <!-- Removed Electric Field Ez -->
+                 <div class="control-group">
+                     <label for="magneticFieldX">Manyetik Alan Bx (Sağ+/Sol-):</label>
+                    <input type="range" id="magneticFieldX" min="-5" max="5" value="0" step="0.2">
+                    <span id="magneticFieldXValue">0</span> B₀
+                </div>
+                 <div class="control-group">
+                     <label for="magneticFieldY">Manyetik Alan By (Yukarı+/Aşağı-):</label>
+                    <input type="range" id="magneticFieldY" min="-5" max="5" value="0" step="0.2">
+                    <span id="magneticFieldYValue">0</span> B₀
+                </div>
+                 <div class="control-group">
+                     <label for="magneticFieldZ">Manyetik Alan Bz (Dışarı+/İçeri-):</label>
+                    <input type="range" id="magneticFieldZ" min="-5" max="5" value="0" step="0.2">
+                    <span id="magneticFieldZValue">0</span> B₀
+                </div>
+            </fieldset>
+
+             <!-- Fieldset 3: Simülasyon Kontrolü -->
+            <fieldset>
+                <legend>Simülasyon Kontrolü</legend>
+                <div class="control-group buttons">
+                    <button id="startButton">Başlat</button>
+                    <button id="resetButton">Sıfırla</button>
+                    <button id="clearTrailsButton">İzleri Temizle</button>
+                    <button id="resetFieldsButton">Alanları Sıfırla</button>
+                    <button id="toggleViewButton">3D Görünüme Geç</button>
+                </div>
+                 <div class="control-group">
+                    <label for="trailLength">İz Uzunluğu:</label>
+                    <input type="range" id="trailLength" min="10" max="500" value="150" step="10">
+                    <span id="trailLengthValue">150</span> adım
+                </div>
+            </fieldset>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <h2>Nasıl Kullanılır?</h2>
+            <ul>
+                <li>Yukarıdaki kontrolleri kullanarak parçacığın yükünü, kütlesini ve başlangıç hızını ayarlayın:
+                    <ul>
+                        <li><code>Vx</code> (Sağ+/Sol-)</li>
+                        <!-- CORRECTED DESCRIPTION -->
+                        <li><code>Vy</code> (Yukarı+/Aşağı-)</li>
+                        <li>Başlangıç <code>Vz</code> her zaman 0'dır.</li>
+                    </ul>
+                </li>
+                <li>Elektrik (E) ve Manyetik (B) alanların büyüklüğünü ve yönünü ayarlayın:
+                    <ul>
+                        <li><code>Ex</code> (Sağ+/Sol-)</li>
+                         <!-- CORRECTED DESCRIPTION -->
+                        <li><code>Ey</code> (Yukarı+/Aşağı-)</li>
+                        <li><code>Ez</code> her zaman 0'dır.</li>
+                        <li><code>Bx</code> (Sağ+/Sol-)</li>
+                        <li><code>By</code> (Yukarı+/Aşağı-)</li>
+                        <li><code>Bz</code> (Dışarı+/İçeri-)</li>
+                    </ul>
+                </li>
+                <li>"3D Görünüme Geç" / "2D Görünüme Geç" butonu ile görüntüleme modunu değiştirin.</li>
+                <li>Aktif simülasyon alanına (gri 2D alan veya 3D sahne) tıklayarak ayarladığınız özelliklerde bir parçacık ekleyin (Not: 3D'de tıklama konumu yer düzleminde belirlenir).</li>
+                <li>"Başlat / Duraklat" butonu ile simülasyonu kontrol edin.</li>
+                <li>"Sıfırla" butonu tüm parçacıkları ve izleri siler, zamanı sıfırlar.</li>
+                <li>"İzleri Temizle" butonu sadece parçacıkların bıraktığı izleri siler.</li>
+                 <li>"Alanları Sıfırla" butonu E ve B alanlarını sıfırlar.</li>
+            </ul>
+             <h2>Temel Kuvvetler ve Koordinatlar</h2>
+            <p><strong>Lorentz Kuvveti:</strong> <code style="font-size:1.1em;">F = qE + q(v × B)</code></p>
+            <ul>
+                <li><strong>Elektrik Kuvveti (qE):</strong> Yüklü parçacıklara E alanı yönünde (q>0) veya tersi (q<0) yönde etki eder.</li>
+                <li><strong>Manyetik Kuvvet q(v × B):</strong> Hareketli yüklü parçacıklara hem hıza (v) hem de B alanına dik yönde etki eder (Sağ el kuralı). Sadece yönü değiştirir, iş yapmaz.</li>
+                <li><strong>Nötr Parçacıklar (q=0):</strong> Elektromanyetik alanlardan etkilenmezler.</li>
+            </ul>
+            <p><strong>Koordinat Sistemleri:</strong></p>
+             <ul>
+                 <!-- CORRECTED DESCRIPTION -->
+                <li><strong>Fizik & 3D Görünüm & Sliderlar:</strong> Pozitif Yönler: +X (Sağ), +Y (Yukarı), +Z (Dışarı - ekrandan size doğru). Negatif Yönler: -X (Sol), -Y (Aşağı), -Z (İçeri - ekranın içine doğru). Tüm fizik hesaplamaları ve slider girdileri bu sisteme göre yorumlanır.</li>
+                <li><strong>2D Kanvas Görselleştirme:</strong> Geleneksel 2D grafiklerde olduğu gibi, kanvas üzerinde pozitif Y yönü <strong>aşağıdır</strong>. Kod, fiziksel +Y (Yukarı) hareketini kanvasta aşağı doğru hareket olarak çizerken bunu dikkate alır.</li>
+                <li>3D görünümde kırmızı oklar <code>Bx</code> ve <code>By</code> alan bileşenlerini gösterir.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
