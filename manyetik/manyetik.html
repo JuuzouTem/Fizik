@@ -51,7 +51,6 @@
                     <span id="initialVxValue">50</span> v₀
                 </div>
                  <div class="control-group">
-                     <!-- CORRECTED LABEL -->
                      <label for="initialVy">Başlangıç Hızı Vy (Yukarı+/Aşağı-):</label>
                     <input type="range" id="initialVy" min="-100" max="100" value="0" step="5">
                     <span id="initialVyValue">0</span> v₀
@@ -68,7 +67,6 @@
                     <span id="electricFieldXValue">0</span> E₀
                 </div>
                  <div class="control-group">
-                     <!-- CORRECTED LABEL -->
                      <label for="electricFieldY">Elektrik Alan Ey (Yukarı+/Aşağı-):</label>
                     <input type="range" id="electricFieldY" min="-10" max="10" value="0" step="0.5">
                     <span id="electricFieldYValue">0</span> E₀
@@ -89,6 +87,16 @@
                     <input type="range" id="magneticFieldZ" min="-5" max="5" value="0" step="0.2">
                     <span id="magneticFieldZValue">0</span> B₀
                 </div>
+                <!-- YENİ: Manyetik Alan Frekansı -->
+                 <div class="control-group">
+                     <label for="magneticFrequency">Manyetik Alan Frekansı (f):</label>
+                    <input type="range" id="magneticFrequency" min="0" max="2" value="0" step="0.05">
+                    <span id="magneticFrequencyValue">0</span> Hz
+                </div>
+                 <!-- YENİ: Frekans Açıklaması -->
+                 <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: -10px;">
+                     Frekans > 0 ise, Bx, By, Bz slider'ları alanın maksimum genliğini (amplitüdünü) belirler ve alan zamanla sinüs şeklinde değişir: B(t) = B_amp * cos(2πft). Frekans = 0 ise alan statiktir (sabit).
+                 </p>
             </fieldset>
 
              <!-- Fieldset 3: Simülasyon Kontrolü -->
@@ -116,7 +124,6 @@
                 <li>Yukarıdaki kontrolleri kullanarak parçacığın yükünü, kütlesini ve başlangıç hızını ayarlayın:
                     <ul>
                         <li><code>Vx</code> (Sağ+/Sol-)</li>
-                        <!-- CORRECTED DESCRIPTION -->
                         <li><code>Vy</code> (Yukarı+/Aşağı-)</li>
                         <li>Başlangıç <code>Vz</code> her zaman 0'dır.</li>
                     </ul>
@@ -124,12 +131,12 @@
                 <li>Elektrik (E) ve Manyetik (B) alanların büyüklüğünü ve yönünü ayarlayın:
                     <ul>
                         <li><code>Ex</code> (Sağ+/Sol-)</li>
-                         <!-- CORRECTED DESCRIPTION -->
                         <li><code>Ey</code> (Yukarı+/Aşağı-)</li>
                         <li><code>Ez</code> her zaman 0'dır.</li>
                         <li><code>Bx</code> (Sağ+/Sol-)</li>
                         <li><code>By</code> (Yukarı+/Aşağı-)</li>
                         <li><code>Bz</code> (Dışarı+/İçeri-)</li>
+                         <li><code>Manyetik Alan Frekansı (f)</code>: Manyetik alanın zamanla ne kadar hızlı salınacağını (değişeceğini) ayarlar. 0 Hz sabit (statik) alan demektir.</li>
                     </ul>
                 </li>
                 <li>"3D Görünüme Geç" / "2D Görünüme Geç" butonu ile görüntüleme modunu değiştirin.</li>
@@ -137,25 +144,24 @@
                 <li>"Başlat / Duraklat" butonu ile simülasyonu kontrol edin.</li>
                 <li>"Sıfırla" butonu tüm parçacıkları ve izleri siler, zamanı sıfırlar.</li>
                 <li>"İzleri Temizle" butonu sadece parçacıkların bıraktığı izleri siler.</li>
-                 <li>"Alanları Sıfırla" butonu E ve B alanlarını sıfırlar.</li>
+                 <li>"Alanları Sıfırla" butonu E ve B alanlarını (ve frekansı) sıfırlar.</li>
             </ul>
              <h2>Temel Kuvvetler ve Koordinatlar</h2>
             <p><strong>Lorentz Kuvveti:</strong> <code style="font-size:1.1em;">F = qE + q(v × B)</code></p>
             <ul>
                 <li><strong>Elektrik Kuvveti (qE):</strong> Yüklü parçacıklara E alanı yönünde (q>0) veya tersi (q<0) yönde etki eder.</li>
-                <li><strong>Manyetik Kuvvet q(v × B):</strong> Hareketli yüklü parçacıklara hem hıza (v) hem de B alanına dik yönde etki eder (Sağ el kuralı). Sadece yönü değiştirir, iş yapmaz.</li>
+                 <li><strong>Manyetik Kuvvet q(v × B):</strong> Hareketli yüklü parçacıklara hem hıza (v) hem de <strong>anlık</strong> B alanına dik yönde etki eder (Sağ el kuralı). Frekans ayarı > 0 ise, B alanı zamanla değişir (<code>B(t) = B_amp * cos(2πft)</code>). Sadece yönü değiştirir, iş yapmaz.</li>
                 <li><strong>Nötr Parçacıklar (q=0):</strong> Elektromanyetik alanlardan etkilenmezler.</li>
             </ul>
             <p><strong>Koordinat Sistemleri:</strong></p>
              <ul>
-                 <!-- CORRECTED DESCRIPTION -->
                 <li><strong>Fizik & 3D Görünüm & Sliderlar:</strong> Pozitif Yönler: +X (Sağ), +Y (Yukarı), +Z (Dışarı - ekrandan size doğru). Negatif Yönler: -X (Sol), -Y (Aşağı), -Z (İçeri - ekranın içine doğru). Tüm fizik hesaplamaları ve slider girdileri bu sisteme göre yorumlanır.</li>
                 <li><strong>2D Kanvas Görselleştirme:</strong> Geleneksel 2D grafiklerde olduğu gibi, kanvas üzerinde pozitif Y yönü <strong>aşağıdır</strong>. Kod, fiziksel +Y (Yukarı) hareketini kanvasta aşağı doğru hareket olarak çizerken bunu dikkate alır.</li>
-                <li>3D görünümde kırmızı oklar <code>Bx</code> ve <code>By</code> alan bileşenlerini gösterir.</li>
+                 <li>3D görünümde kırmızı oklar, <strong>Manyetik Alan Frekansı 0 Hz iken</strong>, <code>Bx</code> ve <code>By</code> alan bileşenlerini (amplitüdlerini) gösterir. <strong>Frekans > 0 ise, bu oklar gizlenir</strong> çünkü anlık alanı temsil etmezler.</li>
             </ul>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
-</html>
+                        </html>
